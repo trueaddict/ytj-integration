@@ -1,8 +1,12 @@
 import axios from 'axios';
 import {createObjectCsvWriter} from 'csv-writer';
 import fs from 'fs';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const createCsvWriter = createObjectCsvWriter;
+
+const uri = process.env.MONGO_URI;
+const client = new MongoClient(String(uri));
 
 interface SearchParams {
   registeredOffice: string;
@@ -12,7 +16,8 @@ interface SearchParams {
 }
 
 interface Company {
-  businessId: string;
+  id: ObjectId;
+  businessId: {type: string, unique : true};
   name: string;
   registrationDate: string;
   companyForm: string;
@@ -83,6 +88,19 @@ const writeCompaniesToJson = (companies: Company[]) => {
 
 }
 
+const writeCompaniesToMongoDb = async (companies: Company[]) => {
+  try {
+    await client.connect();
+    const db = client.db('dev');
+    const companiesCollection = db.collection<Company>('companies');
+
+    const result = await companiesCollection.insertMany(companies);
+    console.log(result);
+  } finally {
+    await client.close();
+  }
+}
+
 const main = async () => {
   const results : Company[] = [];
 
@@ -101,5 +119,6 @@ const main = async () => {
   }*/
   //writeCompaniesToCsv(results);
   writeCompaniesToJson(results);
+  await writeCompaniesToMongoDb(results);
 }
 main();
